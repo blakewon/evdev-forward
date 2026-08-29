@@ -1,0 +1,36 @@
+[
+  {
+    "file": "src/devices/devices.cpp",
+    "arguments": [
+      "/usr/bin/g++",
+      "-O2",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Isrc",
+      "-c",
+      "-o",
+      "build/devices/devices.o",
+      "src/devices/devices.cpp"
+    ],
+    "directory": "/home/blakewon/Projects/input",
+    "output": "build/devices/devices.o"
+  },
+  {
+    "file": "src/main.cpp",
+    "arguments": [
+      "/usr/bin/g++",
+      "-O2",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Isrc",
+      "-c",
+      "-o",
+      "build/main.o",
+      "src/main.cpp"
+    ],
+    "directory": "/home/blakewon/Projects/input",
+    "output": "build/main.o"
+  }
+]
