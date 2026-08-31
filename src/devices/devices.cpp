@@ -58,7 +58,7 @@ static std::vector<std::string> list_event_nodes()
 Device open_device(const std::string &path)
 {
     Device device{-1, path, "?"};
-    device.fd = open(path.c_str(), O_RDONLY);
+    device.fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
 
     char name[256] = "?";
     ioctl(device.fd, EVIOCGNAME(sizeof(name)), name);
@@ -73,7 +73,7 @@ std::vector<Device> detect_devices()
 
     for (const std::string &path : list_event_nodes())
     {
-        int file_descriptor = open(path.c_str(), O_RDONLY);
+        int file_descriptor = open(path.c_str(), O_RDONLY | O_NONBLOCK);
 
         if (file_descriptor < 0)
             continue;

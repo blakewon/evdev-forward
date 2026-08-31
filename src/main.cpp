@@ -1,13 +1,15 @@
 #include "devices/devices.h"
 
 #include <cerrno>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 
-#include <sys/types.h>
-#include <unistd.h>
 #include <linux/input.h>
 #include <linux/input-event-codes.h>
+#include <sys/epoll.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 
 //temporary print helper
@@ -65,59 +67,88 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    for (const Device &device: devices)
+    int epoll_fd = epoll_create1(0);
+    if (epoll_fd < 0)
     {
+        fprintf(stderr, "epoll_create1: %s\n", strerror(errno));
+        return 1;
+    }
+
+    for (Device &device: devices)
+    {
+        epoll_event ev{};
+        ev.events = EPOLLIN;
+        ev.data.ptr = &device;
+
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, device.fd, &ev))
+        {
+            fprintf(stderr, "epoll_ctl %s: %s\n", device.path.c_str(), strerror(errno));
+            return 1;
+        }
+
         printf("Using %s - %s\n", device.path.c_str(), device.name.c_str());
     }
 
-    Device device = devices.at(0);
-    printf("\nreading %s - %s\n\n", device.path.c_str(), device.name.c_str());
-
+    epoll_event ready[16];
     while (true)
     {
+        int n = epoll_wait(epoll_fd, ready, 16, -1);
 
-        input_event buffer[64];
-
-        ssize_t n = read(device.fd, buffer, sizeof(buffer));
-
-        /*
-            n < 0   error, reason is inside errno
-            n == 0  end of file, for a device node it was probably unplugged
-            n > 0   got n bytes, can be fewer than count, which is normal
-        */
         if (n < 0)
         {
-            fprintf(stderr, "Read %s: %s\n", device.path.c_str(), strerror(errno));
+            // EINTR means that a signal interrupted the wait.
+            if (errno == EINTR)
+                continue;
+
+            fprintf(stderr, "epoll_wait: %s\n", strerror(errno));
             break;
         }
 
-        if (n == 0)
+        for(int i = 0; i < n; i++)
         {
-            fprintf(stderr, "%s closed. (unplugged?)\n", device.path.c_str());
-            break;
-        }
-        
-        //The kernel guarantees a read() on an event* file descriptor returns a whole number of input_event structs
-        size_t count = n / sizeof(input_event);
+            // reinterpret the devices we stored previously
+            Device &device = *static_cast<Device *>(ready[i].data.ptr);
 
-        for (size_t i = 0; i < count; i++)
-        {
-            const input_event &event = buffer[i];
-            /*
-                EV_SYN = 0  batch separator(next concept)
-                EV_KEY = 1  a key button changed state
-                EV_REL = 2  relative motion, e.g. mouse moved by an amount
-                EV_ABS = 3  absolute positiion, pointer at a coordinate
-                EV_MSC = 4  miscellaneous hardware info
-            */
-            printf("%-3s code=%-5u value=%-5d", type_name(event.type), event.code, event.value);
-            
-            if (event.type == EV_KEY)
+            input_event buffer[64];
+
+            ssize_t r = read(device.fd, buffer, sizeof(buffer));
+
+            if (r < 0)
             {
-                printf(" (%s)", key_action(event.value));
+                // EAGAIN just means "nothing there afterall"
+                if (errno == EAGAIN)
+                    continue;
+                
+                fprintf(stderr, "Read %s: %s\n", device.path.c_str(), strerror(errno));
+                continue;
             }
-            
-            printf("\n");
+
+            if (r == 0)
+                continue;
+
+            // The kernel guarantees a fixed number of input events
+            size_t count = r / sizeof(input_event);
+
+            for (size_t k = 0; k < count; k++)
+            {
+                const input_event &event = buffer[k];
+                printf("%-22s %-3s code=%-5u value=%-5d", device.name.c_str(), type_name(event.type), event.code, event.value);
+
+                if (event.type == EV_KEY)
+                {
+                    printf(" (%s)", key_action(event.value));
+                }
+
+                printf("\n");
+            }
         }
     }
+
+    close (epoll_fd);
+    for (const Device &device : devices)
+    {
+        close(device.fd);
+    }
+
+    return 0;
 }
