@@ -6,17 +6,17 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
 #include <linux/input.h>
 #include <linux/input-event-codes.h>
-#include <set>
 #include <sys/epoll.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
 
 static std::atomic<bool> g_stop{false};
-static void on_signal(int) { g_stop = true; };
+static void on_signal(int) { g_stop = true; }
 
 //temporary print helper
 static const char *type_name(unsigned short type)
@@ -56,7 +56,7 @@ int main(int argc, char **argv)
             Device device = open_device(argv[i]);
             if (device.fd < 0)
             {
-                fprintf(stderr, "open %s: %s\n", argv[1], strerror(errno));
+                fprintf(stderr, "open %s: %s\n", argv[i], strerror(errno));
                 return 1;
             }
 
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
         }
     }
 
-    printf("\n Releasing grabs...\n");
+    printf("\nReleasing grabs...\n");
 
     set_grabbed(devices, false);
     close (epoll_fd);
