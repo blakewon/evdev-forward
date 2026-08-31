@@ -89,9 +89,18 @@ std::vector<Device> detect_devices()
         ioctl(file_descriptor, EVIOCGBIT(EV_REL, sizeof(rel)), rel);
         ioctl(file_descriptor, EVIOCGBIT(EV_ABS, sizeof(abs)), abs);
 
-        if (looks_like_keyboard(keys) || looks_like_mouse(keys, rel, abs))
+        bool is_keyboard = looks_like_keyboard(keys);
+        bool is_mouse = looks_like_mouse(keys, rel, abs);
+
+        if (is_keyboard || is_mouse)
         {
-            found.push_back(Device{file_descriptor, path, name});
+            found.push_back(
+                Device{file_descriptor,
+                path, 
+                name, 
+                false, 
+                is_mouse, 
+                is_keyboard});
         }
         else 
         {
@@ -100,4 +109,40 @@ std::vector<Device> detect_devices()
     }
 
     return found;
+}
+
+bool set_grabbed(std::vector<Device> &devices, bool grab)
+{
+    std::vector<Device *> changed_devices;
+
+    for (Device& device : devices)
+    {
+        //temporary safeguard so that CTRL + C the process
+        if (device.is_keyboard)
+            continue;
+
+        if (grab)
+        {
+            if(ioctl(device.fd, EVIOCGRAB, 1) < 0)
+            {
+                fprintf(stderr, "grab %s: %s\n", device.path.c_str(), strerror(errno));
+                for (Device *changed_device : changed_devices)
+                {
+                    // release previously grabbed devices
+                    ioctl(changed_device->fd, EVIOCGRAB, 0);
+                    changed_device->grabbed = false;
+                }
+                return false;
+            }
+        }
+        else
+        {
+            ioctl(device.fd, EVIOCGRAB, 0);
+        }
+
+        device.grabbed = grab;
+        changed_devices.push_back(&device);
+    }
+    
+    return true;
 }

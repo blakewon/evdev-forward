@@ -1,16 +1,22 @@
 #include "devices/devices.h"
 
+#include <atomic>
 #include <cerrno>
+#include <csignal>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
 
 #include <linux/input.h>
 #include <linux/input-event-codes.h>
+#include <set>
 #include <sys/epoll.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <vector>
 
+static std::atomic<bool> g_stop{false};
+static void on_signal(int) { g_stop = true; };
 
 //temporary print helper
 static const char *type_name(unsigned short type)
@@ -37,6 +43,7 @@ static const char *key_action(int value)
         default:return "?";
     }
 }
+
 
 int main(int argc, char **argv)
 {
@@ -89,8 +96,29 @@ int main(int argc, char **argv)
         printf("Using %s - %s\n", device.path.c_str(), device.name.c_str());
     }
 
+    std::signal(SIGINT, on_signal);
+    std::signal(SIGTERM, on_signal);
+
+    if (!set_grabbed(devices, true))
+    {
+        fprintf(stderr, "could not grab all of the devices, exiting.\n");
+        return 1;
+    }
+
+    size_t grabbed = 0;
+
+    for (const Device& device : devices)
+    {
+        if (device.grabbed)
+        {
+            grabbed++;
+        }
+    }
+
+    printf("\ngrabbed %zu devices(s), the host no longer sees them. Ctrl-C to stop.\n\n", grabbed);
+
     epoll_event ready[16];
-    while (true)
+    while (!g_stop)
     {
         int n = epoll_wait(epoll_fd, ready, 16, -1);
 
@@ -144,6 +172,9 @@ int main(int argc, char **argv)
         }
     }
 
+    printf("\n Releasing grabs...\n");
+
+    set_grabbed(devices, false);
     close (epoll_fd);
     for (const Device &device : devices)
     {
