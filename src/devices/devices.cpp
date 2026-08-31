@@ -73,7 +73,7 @@ std::vector<Device> detect_devices()
 
     for (const std::string &path : list_event_nodes())
     {
-        int file_descriptor = open(path.c_str(), O_RDONLY | O_NONBLOCK);
+        int file_descriptor = open(path.c_str(), O_RDONLY);
 
         if (file_descriptor < 0)
             continue;
