@@ -117,7 +117,7 @@ bool set_grabbed(std::vector<Device> &devices, bool grab)
 
     for (Device& device : devices)
     {
-        //temporary safeguard so that CTRL + C the process
+        //temporary safeguard so that i can CTRL + C the process
         if (device.is_keyboard)
             continue;
 
@@ -145,4 +145,26 @@ bool set_grabbed(std::vector<Device> &devices, bool grab)
     }
     
     return true;
+}
+
+std::vector<Device> collect_devices(int argc, char** argv)
+{
+    if (argc <= 1)
+        return detect_devices();
+
+    std::vector<Device> devices;
+    for (int i = 1; i < argc; i++)
+    {
+        Device device = open_device(argv[i]);
+        if (device.fd < 0)
+        {
+            fprintf(stderr, "open %s: %s", argv[i], strerror(errno));
+        }
+        else
+        {
+            devices.push_back(std::move(device));
+        }
+    }
+
+    return devices;
 }

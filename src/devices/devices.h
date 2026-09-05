@@ -16,3 +16,4 @@ struct Device
 std::vector<Device> detect_devices();
 Device open_device(const std::string& path);
 bool set_grabbed(std::vector<Device> &devices, bool grab);
+std::vector<Device> collect_devices(int argc, char **argv);
