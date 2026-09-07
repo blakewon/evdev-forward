@@ -8,6 +8,7 @@
 
 #include <linux/input-event-codes.h>
 #include <linux/input.h>
+#include <linux/uinput.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -158,7 +159,6 @@ void forwarder_run(Forwarder &forwarder)
 
         for (int i = 0; i < n; i++)
         {
-            // reinterpret the devices we stored previously
             uint32_t index = ready[i].data.u32;
             Device &device = forwarder.devices.items[index];
             Sink &sink = forwarder.sinks.items[index];
@@ -171,6 +171,24 @@ void forwarder_run(Forwarder &forwarder)
                 // EAGAIN just means "nothing there afterall"
                 if (errno == EAGAIN)
                     continue;
+
+                // guard against unplugged devices
+                if (errno == ENODEV)
+                {
+                    fprintf(stderr, "%s disconnected.\n", device.path);
+                    epoll_ctl(forwarder.epoll_fd, EPOLL_CTL_DEL, device.fd, nullptr);
+                    close(device.fd);
+                    device.fd = -1;
+
+                    int &sink_fd = forwarder.sinks.items[index].fd;
+                    if (sink_fd >= 0)
+                    {
+                        ioctl(sink_fd, UI_DEV_DESTROY);
+                        close(sink_fd);
+                        sink_fd = -1;
+                    }
+                    continue;
+                }
 
                 fprintf(stderr, "read %s: %s\n", device.path, strerror(errno));
                 continue;
