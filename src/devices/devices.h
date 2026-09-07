@@ -27,3 +27,4 @@ bool open_device(Device &out, const char *path);
 Devices detect_devices();
 Devices collect_devices(int argc, char **argv);
 bool set_grabbed(Devices &devices, bool grab);
+void release_hotkey_buttons(Device &device);

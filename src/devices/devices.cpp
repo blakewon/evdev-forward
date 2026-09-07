@@ -41,7 +41,7 @@ static int only_event_nodes(const struct dirent *entry)
 
 bool open_device(Device &out, const char *path)
 {
-    int fd = open(path, O_RDONLY | O_NONBLOCK);
+    int fd = open(path, O_RDWR | O_NONBLOCK);
 
     if (fd < 0)
     {
@@ -93,7 +93,7 @@ Devices detect_devices()
         snprintf(path, sizeof(path), "/dev/input/%s", namelist[i]->d_name);
         free(namelist[i]);
 
-        int fd = open(path, O_RDONLY | O_NONBLOCK);
+        int fd = open(path, O_RDWR | O_NONBLOCK);
 
         if (fd < 0)
             continue;
@@ -145,8 +145,7 @@ bool set_grabbed(Devices &devices, bool grab)
     {
         Device &device = devices.items[i];
 
-        // temporary safeguard
-        if (device.is_keyboard)
+        if (device.fd < 0)
             continue;
 
         if (device.grabbed == grab)
@@ -194,4 +193,41 @@ Devices collect_devices(int argc, char **argv)
     }
 
     return devices;
+}
+
+void release_hotkey_buttons(Device &device)
+{
+    if (device.fd < 0)
+        return;
+
+    unsigned char keys[KEY_MAX / 8 + 1] = {};
+    if (ioctl(device.fd, EVIOCGKEY(sizeof(keys)), keys) < 0)
+        return;
+
+    bool any = false;
+
+    for (int code = 0; code <= KEY_MAX; code++)
+    {
+        if (!(keys[code >> 3] & (1u << (code & 7))))
+            continue;
+
+        input_event event{};
+        event.type = EV_KEY;
+        event.code = (unsigned short)code;
+        event.value = 0;
+
+        if (write(device.fd, &event, sizeof(event)) == (size_t)sizeof(event))
+        {
+            any = true;
+        }
+
+    }
+
+    if (any)
+    {
+        input_event syn{};
+        syn.type = EV_SYN;
+        syn.code = SYN_REPORT;
+        write(device.fd, &syn, sizeof(syn));
+    }
 }

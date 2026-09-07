@@ -2,12 +2,17 @@
 
 #include "devices/devices.h"
 #include "sink/sink.h"
-
+struct Hotkey
+{
+    bool ctrl = false;
+    bool shift = false;
+};
 struct Forwarder
 {
     Devices devices;
     Sinks sinks;
     int epoll_fd = -1;
+    Hotkey hotkey;
 
     ~Forwarder();
 

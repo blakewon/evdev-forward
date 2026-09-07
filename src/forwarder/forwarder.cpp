@@ -13,9 +13,11 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
+#include "devices/devices.h"
 #include "sink/sink.h"
 
 static std::atomic<bool> g_stop{false};
+static std::atomic<bool> g_active{false};
 static void on_signal(int) {g_stop = true;}
 
 void install_signal_handlers()
@@ -54,14 +56,14 @@ static void handle_event(const Device &device, const input_event &event, Sink &s
 {
     sink_write(sink, event);
 
-    printf("%-22s %-3s code=%-5u value=%-5d", device.name, type_name(event.type), event.code, event.value);
+    //printf("%-22s %-3s code=%-5u value=%-5d", device.name, type_name(event.type), event.code, event.value);
 
     if (event.type == EV_KEY)
     {
-        printf(" (%s)", key_action(event.value));
+        //printf(" (%s)", key_action(event.value));
     }
 
-    printf("\n");
+    //printf("\n");
 }
 
 // cleanup
@@ -139,6 +141,56 @@ bool forwarder_setup(Forwarder& forwarder)
     return true;
 }
 
+static bool hotkey_feed(Hotkey &hk, const input_event event)
+{
+    if (event.type != EV_KEY)
+        return false;
+
+    switch(event.code)
+    {
+        case KEY_LEFTCTRL:
+        case KEY_RIGHTCTRL:
+            hk.ctrl = (event.value != 0);
+            return false;
+        
+        case KEY_LEFTSHIFT:
+        case KEY_RIGHTSHIFT:
+            hk.shift = (event.value != 0);
+            return false;
+        
+        case KEY_SPACE:
+            return event.value == 1 && hk.ctrl && hk.shift;
+
+        default:
+            return false;
+    }
+}
+
+static void toggle_forwarding(Forwarder &forwarder)
+{
+    if (g_active)
+    {
+        set_grabbed(forwarder.devices, false);
+        g_active = false;
+        printf("Forwarding OFF.\n");
+    }
+    else
+    {
+        for (size_t i = 0; i < forwarder.devices.count; i++)
+        {
+            release_hotkey_buttons(forwarder.devices.items[i]);
+        }
+
+        if (!set_grabbed(forwarder.devices, true))
+        {
+            fprintf(stderr, "grab failed, staying disengaged\n");
+            return;
+        }
+        g_active = true;
+        printf("Forwarding ON.\n");
+    }
+}
+
 void forwarder_run(Forwarder &forwarder)
 {
     epoll_event ready[16];
@@ -201,7 +253,15 @@ void forwarder_run(Forwarder &forwarder)
 
             for (size_t k = 0; k < count; k++)
             {
-                handle_event(device, buffer[k], sink);
+                const input_event &event = buffer[k];
+
+                if (hotkey_feed(forwarder.hotkey, event))
+                {
+                    toggle_forwarding(forwarder);
+                    continue;
+                }
+                
+                handle_event(device, event, sink);
             }
         }
     }
