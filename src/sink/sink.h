@@ -7,13 +7,13 @@
 struct Sink
 {
     int fd = -1;
-
-    ~Sink();
-
-    Sink() = default;
-    Sink(const Sink&) = delete;
-    Sink& operator=(const Sink&) = delete;
+};
+struct Sinks
+{
+    Sink *items = nullptr;
+    size_t count = 0;
 };
 
-bool sink_open(Sink &sink, const Devices &sources);
+bool sinks_open(Sinks &sinks, const Devices &sources);
 void sink_write(Sink& sink, const input_event &event);
+void sinks_close(Sinks &sinks);

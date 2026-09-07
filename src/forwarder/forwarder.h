@@ -6,8 +6,8 @@
 struct Forwarder
 {
     Devices devices;
+    Sinks sinks;
     int epoll_fd = -1;
-    Sink sink;
 
     ~Forwarder();
 

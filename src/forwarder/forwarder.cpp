@@ -67,6 +67,7 @@ static void handle_event(const Device &device, const input_event &event, Sink &s
 Forwarder::~Forwarder()
 {
     set_grabbed(devices, false);
+    sinks_close(sinks);
 
     if (epoll_fd >= 0)
     {
@@ -101,7 +102,7 @@ bool forwarder_setup(Forwarder& forwarder)
 
         epoll_event event{};
         event.events = EPOLLIN;
-        event.data.ptr = &device;
+        event.data.u32 = (uint32_t)i;
 
         if (epoll_ctl(forwarder.epoll_fd, EPOLL_CTL_ADD, device.fd, &event))
         {
@@ -117,9 +118,9 @@ bool forwarder_setup(Forwarder& forwarder)
         return false;
     }
 
-    if (!sink_open(forwarder.sink, forwarder.devices))
+    if (!sinks_open(forwarder.sinks, forwarder.devices))
     {
-        fprintf(stderr, "Could not open the sink, exiting.\n");
+        fprintf(stderr, "Could not open the sinks, exiting.\n");
         return false;
     }
 
@@ -158,7 +159,9 @@ void forwarder_run(Forwarder &forwarder)
         for (int i = 0; i < n; i++)
         {
             // reinterpret the devices we stored previously
-            Device &device = *static_cast<Device *>(ready[i].data.ptr);
+            uint32_t index = ready[i].data.u32;
+            Device &device = forwarder.devices.items[index];
+            Sink &sink = forwarder.sinks.items[index];
 
             input_event buffer[64];
 
@@ -180,7 +183,7 @@ void forwarder_run(Forwarder &forwarder)
 
             for (size_t k = 0; k < count; k++)
             {
-                handle_event(device, buffer[k], forwarder.sink);
+                handle_event(device, buffer[k], sink);
             }
         }
     }

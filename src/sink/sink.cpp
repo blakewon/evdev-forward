@@ -9,6 +9,7 @@
 #include <linux/input-event-codes.h>
 #include <linux/input.h>
 #include <linux/uinput.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -53,7 +54,7 @@ static void copy_capabilities(int uinput_fd, int source_fd)
     }
 }
 
-bool sink_open(Sink& sink, const Devices &sources)
+bool sink_open_one(Sink& sink, const Device &source)
 {
     sink.fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     if (sink.fd < 0)
@@ -63,16 +64,15 @@ bool sink_open(Sink& sink, const Devices &sources)
     }
 
     ioctl(sink.fd, UI_SET_EVBIT, EV_SYN);
-    for (size_t i = 0; i < sources.count; i++)  {
-        copy_capabilities(sink.fd, sources.items[i].fd);
-    }
+    copy_capabilities(sink.fd, source.fd);
 
     uinput_setup setup{};
+    ioctl(source.fd, EVIOCGID, &setup.id);
 
-    setup.id.bustype = BUS_VIRTUAL;
-    setup.id.vendor = 0x1;
-    setup.id.product = 0x1;
-    strcpy(setup.name, "evdev-forward");
+    if (snprintf(setup.name, sizeof(setup.name), "evdev-forward %s", source.name) < 0)
+    {
+        strcpy(setup.name, "evdev-forward");
+    }
 
     if (ioctl(sink.fd, UI_DEV_SETUP, &setup) < 0)
     {
@@ -83,10 +83,35 @@ bool sink_open(Sink& sink, const Devices &sources)
     if (ioctl(sink.fd, UI_DEV_CREATE) < 0)
     {
         fprintf(stderr, "UI_DEV_CREATE: %s\n", strerror(errno));
+        close(sink.fd);
+        sink.fd = -1;
         return false;
     }
 
-    // let udev node be created before events flow, i should probably find a better way to do this
+    return true;
+}
+
+bool sinks_open(Sinks &sinks, const Devices &sources)
+{
+    sinks.items = (Sink *)calloc(sources.count, sizeof(Sink));
+
+    if (sources.count > 0 && sinks.items == nullptr)
+    {
+        fprintf(stderr, "sinks_open: out of memory\n");
+        return false;
+    }
+
+    for (size_t i = 0; i < sources.count; i++)
+    {
+        sinks.items[i].fd = -1;
+        if (!sink_open_one(sinks.items[i], sources.items[i]))
+        {
+            return false;
+        }
+        sinks.count = i + 1;
+    }
+
+    // wait for nodes creation, i should probably find a better way to do this
     usleep(200 * 1000);
     return true;
 }
@@ -99,12 +124,14 @@ void sink_write(Sink &sink, const input_event &event)
     }
 }
 
-Sink::~Sink()
+void sinks_close(Sinks &sinks)
 {
-    if (fd >= 0)
+    for (size_t i = 0; i < sinks.count; i++)
     {
-        ioctl(fd, UI_DEV_DESTROY);
-        close(fd);
+        if (sinks.items[i].fd >= 0)
+        {
+            ioctl(sinks.items[i].fd, UI_DEV_DESTROY);
+            close(sinks.items[i].fd);
+        }
     }
 }
-
