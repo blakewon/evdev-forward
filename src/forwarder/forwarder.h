@@ -1,13 +1,11 @@
 #pragma once
 
-#include <vector>
-
 #include "devices/devices.h"
 #include "sink/sink.h"
 
 struct Forwarder
 {
-    std::vector<Device> devices;
+    Devices devices;
     int epoll_fd = -1;
     Sink sink;
 

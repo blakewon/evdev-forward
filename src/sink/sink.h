@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-
 #include <linux/input.h>
 
 #include "devices/devices.h"
@@ -17,5 +15,5 @@ struct Sink
     Sink& operator=(const Sink&) = delete;
 };
 
-bool sink_open(Sink &sink, const std::vector<Device> & sources);
+bool sink_open(Sink &sink, const Devices &sources);
 void sink_write(Sink& sink, const input_event &event);

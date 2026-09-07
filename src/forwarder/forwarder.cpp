@@ -8,6 +8,7 @@
 
 #include <linux/input-event-codes.h>
 #include <linux/input.h>
+#include <stdlib.h>
 #include <sys/epoll.h>
 #include <unistd.h>
 
@@ -52,7 +53,7 @@ static void handle_event(const Device &device, const input_event &event, Sink &s
 {
     sink_write(sink, event);
 
-    printf("%-22s %-3s code=%-5u value=%-5d", device.name.c_str(), type_name(event.type), event.code, event.value);
+    printf("%-22s %-3s code=%-5u value=%-5d", device.name, type_name(event.type), event.code, event.value);
 
     if (event.type == EV_KEY)
     {
@@ -72,13 +73,16 @@ Forwarder::~Forwarder()
         close(epoll_fd);
     }
 
-    for (const Device& device: devices)
+    for (size_t i = 0; i < devices.count; i++)
     {
+        Device &device = devices.items[i];
         if (device.fd >= 0)
         {
             close(device.fd);
         }
     }
+
+    free(devices.items);
 }
 
 bool forwarder_setup(Forwarder& forwarder)
@@ -91,18 +95,20 @@ bool forwarder_setup(Forwarder& forwarder)
         return false;
     }
 
-    for (Device &device : forwarder.devices)
+    for (size_t i = 0; i < forwarder.devices.count; i++)
     {
+        Device &device = forwarder.devices.items[i];
+
         epoll_event event{};
         event.events = EPOLLIN;
         event.data.ptr = &device;
 
         if (epoll_ctl(forwarder.epoll_fd, EPOLL_CTL_ADD, device.fd, &event))
         {
-            fprintf(stderr, "epoll_ctl %s: %s\n", device.path.c_str(), strerror(errno));
+            fprintf(stderr, "epoll_ctl %s: %s\n", device.path, strerror(errno));
             return false;
         }
-        printf("Using %s - %s\n", device.path.c_str(), device.name.c_str());
+        printf("Using %s - %s\n", device.path, device.name);
     }
 
     if (!set_grabbed(forwarder.devices, true))
@@ -111,7 +117,7 @@ bool forwarder_setup(Forwarder& forwarder)
         return false;
     }
 
-    if(!sink_open(forwarder.sink, forwarder.devices))
+    if (!sink_open(forwarder.sink, forwarder.devices))
     {
         fprintf(stderr, "Could not open the sink, exiting.\n");
         return false;
@@ -119,9 +125,9 @@ bool forwarder_setup(Forwarder& forwarder)
 
     size_t grabbed = 0;
 
-    for (const Device &device: forwarder.devices)
+    for (size_t i = 0; i < forwarder.devices.count; i++)
     {
-        if(device.grabbed)
+        if(forwarder.devices.items[i].grabbed)
         {
             grabbed++;
         }
@@ -163,7 +169,7 @@ void forwarder_run(Forwarder &forwarder)
                 if (errno == EAGAIN)
                     continue;
 
-                fprintf(stderr, "read %s: %s\n", device.path.c_str(), strerror(errno));
+                fprintf(stderr, "read %s: %s\n", device.path, strerror(errno));
                 continue;
             }
 

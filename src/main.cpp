@@ -8,9 +8,9 @@ int main(int argc, char **argv)
     Forwarder forwarder;
     forwarder.devices = collect_devices(argc, argv);
 
-    if (forwarder.devices.empty())
+    if (forwarder.devices.count <= 0)
     {
-        fprintf(stderr, "No input devices found (need root or the 'input' group\n");
+        fprintf(stderr, "No input devices found (need root or the 'input' group)\n");
         return 1;
     }
 

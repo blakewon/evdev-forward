@@ -12,7 +12,6 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <vector>
 
 
 struct Group
@@ -54,7 +53,7 @@ static void copy_capabilities(int uinput_fd, int source_fd)
     }
 }
 
-bool sink_open(Sink& sink, const std::vector<Device> &sources)
+bool sink_open(Sink& sink, const Devices &sources)
 {
     sink.fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     if (sink.fd < 0)
@@ -64,9 +63,8 @@ bool sink_open(Sink& sink, const std::vector<Device> &sources)
     }
 
     ioctl(sink.fd, UI_SET_EVBIT, EV_SYN);
-    for (const Device &device: sources)
-    {
-        copy_capabilities(sink.fd, device.fd);
+    for (size_t i = 0; i < sources.count; i++)  {
+        copy_capabilities(sink.fd, sources.items[i].fd);
     }
 
     uinput_setup setup{};
