@@ -22,3 +22,6 @@ int main(int argc, char **argv)
     forwarder_run(forwarder);
     return 0;
 }
+
+//TODO: EV_ABS for relative mice/touchpads/tablets
+//TODO: Hotplug

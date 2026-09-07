@@ -3,11 +3,13 @@
 #include <vector>
 
 #include "devices/devices.h"
+#include "sink/sink.h"
 
 struct Forwarder
 {
     std::vector<Device> devices;
     int epoll_fd = -1;
+    Sink sink;
 
     ~Forwarder();
 

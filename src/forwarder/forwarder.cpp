@@ -1,5 +1,4 @@
 #include "forwarder/forwarder.h"
-#include "devices/devices.h"
 
 #include <atomic>
 #include <cerrno>
@@ -11,6 +10,8 @@
 #include <linux/input.h>
 #include <sys/epoll.h>
 #include <unistd.h>
+
+#include "sink/sink.h"
 
 static std::atomic<bool> g_stop{false};
 static void on_signal(int) {g_stop = true;}
@@ -47,8 +48,10 @@ static const char *key_action(int value)
     }
 }
 
-static void handle_event(const Device &device, const input_event &event)
+static void handle_event(const Device &device, const input_event &event, Sink &sink)
 {
+    sink_write(sink, event);
+
     printf("%-22s %-3s code=%-5u value=%-5d", device.name.c_str(), type_name(event.type), event.code, event.value);
 
     if (event.type == EV_KEY)
@@ -105,6 +108,12 @@ bool forwarder_setup(Forwarder& forwarder)
     if (!set_grabbed(forwarder.devices, true))
     {
         fprintf(stderr, "Could not grab all devices, exiting.\n");
+        return false;
+    }
+
+    if(!sink_open(forwarder.sink, forwarder.devices))
+    {
+        fprintf(stderr, "Could not open the sink, exiting.\n");
         return false;
     }
 
@@ -165,7 +174,7 @@ void forwarder_run(Forwarder &forwarder)
 
             for (size_t k = 0; k < count; k++)
             {
-                handle_event(device, buffer[k]);
+                handle_event(device, buffer[k], forwarder.sink);
             }
         }
     }

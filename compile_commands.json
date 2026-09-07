@@ -32,5 +32,39 @@
     ],
     "directory": "/home/blakewon/Projects/input",
     "output": "build/main.o"
+  },
+  {
+    "file": "src/sink/sink.cpp",
+    "arguments": [
+      "/usr/bin/g++",
+      "-O2",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Isrc",
+      "-c",
+      "-o",
+      "build/sink/sink.o",
+      "src/sink/sink.cpp"
+    ],
+    "directory": "/home/blakewon/Projects/input",
+    "output": "build/sink/sink.o"
+  },
+  {
+    "file": "src/forwarder/forwarder.cpp",
+    "arguments": [
+      "/usr/bin/g++",
+      "-O2",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Isrc",
+      "-c",
+      "-o",
+      "build/forwarder/forwarder.o",
+      "src/forwarder/forwarder.cpp"
+    ],
+    "directory": "/home/blakewon/Projects/input",
+    "output": "build/forwarder/forwarder.o"
   }
 ]
