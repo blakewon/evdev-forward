@@ -2,4 +2,6 @@ refactor/
 .vscode/
 temp.md
 build/
-input-forwarder
+evdev-forward
+compile_commands.json
+.cache/
