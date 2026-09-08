@@ -3,10 +3,20 @@
 
 #include <cstdio>
 
+#include <string.h>
+
 int main(int argc, char **argv)
 {
     Forwarder forwarder;
     forwarder.devices = collect_devices(argc, argv);
+
+    for (int i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0)
+        {
+            forwarder_set_verbose(true);
+        }
+    }
 
     if (forwarder.devices.count <= 0)
     {
@@ -25,3 +35,4 @@ int main(int argc, char **argv)
 
 //TODO: EV_ABS for relative mice/touchpads/tablets
 //TODO: Hotplug
+//TODO: Accumulative motion

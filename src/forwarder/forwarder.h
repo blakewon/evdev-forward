@@ -24,3 +24,4 @@ struct Forwarder
 void install_signal_handlers();
 bool forwarder_setup(Forwarder& fwd);
 void forwarder_run(Forwarder& fwd);
+void forwarder_set_verbose(bool flag);

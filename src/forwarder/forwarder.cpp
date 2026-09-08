@@ -19,6 +19,12 @@
 static std::atomic<bool> g_stop{false};
 static std::atomic<bool> g_active{false};
 static void on_signal(int) {g_stop = true;}
+static bool g_verbose = false;
+
+void forwarder_set_verbose(bool flag)
+{
+    g_verbose = flag;
+}
 
 void install_signal_handlers()
 {
@@ -56,14 +62,19 @@ static void handle_event(const Device &device, const input_event &event, Sink &s
 {
     sink_write(sink, event);
 
-    //printf("%-22s %-3s code=%-5u value=%-5d", device.name, type_name(event.type), event.code, event.value);
+    if (!g_verbose)
+    {
+        return;
+    }
+
+    printf("%-22s %-3s code=%-5u value=%-5d", device.name, type_name(event.type), event.code, event.value);
 
     if (event.type == EV_KEY)
     {
-        //printf(" (%s)", key_action(event.value));
+        printf(" (%s)", key_action(event.value));
     }
 
-    //printf("\n");
+    printf("\n");
 }
 
 // cleanup

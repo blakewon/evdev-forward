@@ -10,8 +10,8 @@
 #include <limits.h>
 #include <linux/input.h>
 #include <linux/input-event-codes.h>
-#include <sys/ioctl.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 //checks if device key map supports a capability, e.g. BTN_LEFT
@@ -175,17 +175,29 @@ bool set_grabbed(Devices &devices, bool grab)
 
 Devices collect_devices(int argc, char **argv)
 {
-    if (argc <= 1)
+    int path_count = 0;
+    for (int i = 1; i < argc; i++)
+    {
+        if (argv[i][0] != '-')
+        {
+            path_count++;
+        }
+    }
+
+    if (path_count == 0)
         return detect_devices();
 
     Devices devices;
-    devices.items = (Device *)calloc(argc - 1, sizeof(Device));
+    devices.items = (Device *)calloc(path_count, sizeof(Device));
 
     if (devices.items == nullptr)
         return Devices{};
 
     for (int i = 1; i < argc; i++)
     {
+        if (argv[i][0] == '-')
+            continue;
+
         if (open_device(devices.items[devices.count], argv[i]))
         {
             devices.count++;
@@ -220,7 +232,6 @@ void release_hotkey_buttons(Device &device)
         {
             any = true;
         }
-
     }
 
     if (any)
