@@ -1,5 +1,11 @@
+ifeq($(wildcard config.mk),)
+$(error No config.mk - run ./configure first)
+endif
+
+include config.mk
+
 CXX			:= g++
-CXXFLAGS	:= -O2 -std=c++17 -Wall -Wextra -Isrc -I -MMD -MP -fno-exceptions -fno-rtti
+CXXFLAGS	:= -O2 -std=c++17 -Wall -Wextra -Isrc -I. -MMD -MP -fno-exceptions -fno-rtti
 LDLIBS		:= $(XTEST_LIBS)
 
 SRC_DIR		:= src
@@ -25,6 +31,9 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 
 clean:
 	rm -rf $(BUILD_DIR) $(BIN)
+
+distclean: clean
+	rm -f config.mk config.h
 
 -include $(DEPS)
 
