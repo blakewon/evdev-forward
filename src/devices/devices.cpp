@@ -173,35 +173,21 @@ bool set_grabbed(Devices &devices, bool grab)
     return true;
 }
 
-Devices collect_devices(int argc, char **argv)
+Devices collect_devices(size_t count, char **paths)
 {
-    int path_count = 0;
-    for (int i = 1; i < argc; i++)
-    {
-        if (argv[i][0] != '-')
-        {
-            path_count++;
-        }
-    }
-
-    if (path_count == 0)
+    if (count == 0)
         return detect_devices();
 
     Devices devices;
-    devices.items = (Device *)calloc(path_count, sizeof(Device));
+    devices.items = (Device *)calloc(count, sizeof(Device));
 
     if (devices.items == nullptr)
         return Devices{};
 
-    for (int i = 1; i < argc; i++)
+    for (size_t i = 0; i < count; i++)
     {
-        if (argv[i][0] == '-')
-            continue;
-
-        if (open_device(devices.items[devices.count], argv[i]))
-        {
+        if(open_device(devices.items[devices.count], paths[i]))
             devices.count++;
-        }
     }
 
     return devices;

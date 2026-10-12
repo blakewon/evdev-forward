@@ -135,6 +135,8 @@ void sinks_close(Sinks &sinks)
             close(sinks.items[i].fd);
         }
     }
+
+    free(sinks.items);
 }
 
 void sink_release_held(Sink &sink, int source_fd)

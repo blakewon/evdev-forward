@@ -35,7 +35,7 @@ static void usage(FILE *out, const char *prog)
         "Usage: %s [options] [device...]\n"
         "\n"
         "Grab input devices and forward them to virtual devices named\n"
-        "'evdev-forward <source name>', or into an X server wwith --display.\n"
+        "'evdev-forward <source name>', or into an X server with --display.\n"
         "With no devices given, keyboards and mice are detected automatically.\n"
         "Ctrl+Shift+Space toggles forwarding."
         "\n"
@@ -54,14 +54,14 @@ static bool parse_options(int argc, char **argv, Options &options)
     {
         {"display", required_argument, nullptr, 'd'},
         {"devices", required_argument, nullptr, 'f'},
-        {"no-hotkey", required_argument, nullptr, 'n'},
+        {"no-hotkey", no_argument, nullptr, 'n'},
         {"verbose", no_argument, nullptr, 'v'},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0},
     };
 
     int c;
-    while ((c = getopt_long(argc, argv, "d:s:vh", long_options, nullptr)) != -1)
+    while ((c = getopt_long(argc, argv, "d:f:nvh", long_options, nullptr)) != -1)
     {
         switch (c)
         {

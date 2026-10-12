@@ -1,12 +1,10 @@
 #include "sink/xtest.h"
 
 #include <X11/X.h>
-#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-#include <exception>
 #include <linux/input-event-codes.h>
 #include <unistd.h>
 #include <X11/Xlib.h>
@@ -54,6 +52,13 @@ bool xtest_open(XTestSink &sink, const char *name)
 {
     sink.display = XOpenDisplay(name);
     if (sink.display == nullptr)
+    {
+        fprintf(stderr, "cannot open display %s\n", name);
+        return false;
+    }
+
+    int event_base, error_base, major, minor;
+    if (!XTestQueryExtension(sink.display, &event_base, &error_base, &major, &minor))
     {
         fprintf(stderr, "%s: server lacks the XTEST extension\n", name);
         XCloseDisplay(sink.display);
@@ -129,7 +134,7 @@ void xtest_release_all(XTestSink &sink)
 
     for (int code = 0; code <= KEY_MAX; code++)
     {
-        if (!(sink.pressed[code >> 3] & (1u << (code & 77))))
+        if (!(sink.pressed[code >> 3] & (1u << (code & 7))))
             continue;
 
         if (unsigned int button = button_for(code))
@@ -138,7 +143,7 @@ void xtest_release_all(XTestSink &sink)
         }
         else 
         {
-            XTestFakeButtonEvent(sink.display, code + KEYCODE_OFFSET, False, CurrentTime);
+            XTestFakeKeyEvent(sink.display, code + KEYCODE_OFFSET, False, CurrentTime);
         }
     }
 
