@@ -13,24 +13,15 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "devices/devices.h"
 #include "sink/sink.h"
+#include "sink/xtest.h"
 
 static std::atomic<bool> g_stop{false};
 static std::atomic<bool> g_active{false};
 static void on_signal(int) {g_stop = true;}
 static bool g_verbose = false;
-
-void forwarder_set_verbose(bool flag)
-{
-    g_verbose = flag;
-}
-
-void install_signal_handlers()
-{
-    std::signal(SIGINT, on_signal);
-    std::signal(SIGTERM, on_signal);
-}
 
 // print helper
 static const char *type_name(unsigned short type)
@@ -58,23 +49,42 @@ static const char *key_action(int value)
     }
 }
 
-static void handle_event(const Device &device, const input_event &event, Sink &sink)
+
+static void print_event(const Device &device, const input_event &event)
 {
-    sink_write(sink, event);
-
-    if (!g_verbose)
-    {
-        return;
-    }
-
     printf("%-22s %-3s code=%-5u value=%-5d", device.name, type_name(event.type), event.code, event.value);
 
     if (event.type == EV_KEY)
-    {
         printf(" (%s)", key_action(event.value));
-    }
 
     printf("\n");
+}
+
+static void forward_event(Forwarder &forwarder, uint32_t index, const input_event &event)
+{
+    if (g_verbose)
+        print_event(forwarder.devices.items[index], event);
+
+#ifdef HAVE_XTEST
+    if (forwarder.display)
+    {
+        xtest_write(forwarder.xtest, event);
+        return;
+    }
+#endif
+
+    sink_write(forwarder.sinks.items[index], event);
+}
+
+void forwarder_set_verbose(bool flag)
+{
+    g_verbose = flag;
+}
+
+void install_signal_handlers()
+{
+    std::signal(SIGINT, on_signal);
+    std::signal(SIGTERM, on_signal);
 }
 
 // cleanup
@@ -82,6 +92,10 @@ Forwarder::~Forwarder()
 {
     set_grabbed(devices, false);
     sinks_close(sinks);
+
+#ifdef HAVE_XTEST
+    xtest_close(this->xtest);
+#endif
 
     if (epoll_fd >= 0)
     {
@@ -126,29 +140,23 @@ bool forwarder_setup(Forwarder& forwarder)
         printf("Using %s - %s\n", device.path, device.name);
     }
 
-    if (!set_grabbed(forwarder.devices, true))
+    if (forwarder.display)
     {
-        fprintf(stderr, "Could not grab all devices, exiting.\n");
+    #ifdef HAVE_XTEST
+        if (!xtest_open(forwarder.xtest, forwarder.display))
+            return false;
+    #else
+        fprintf(stderr, "--display needs XTest support; this build has none. Install dependencies and re-run ./configure\n");
+        return false;
+    #endif
+    }
+    else if (!sinks_open(forwarder.sinks, forwarder.devices))
+    {
+        fprintf(stderr, "Could not open the sinks, exiting...\n");
         return false;
     }
 
-    if (!sinks_open(forwarder.sinks, forwarder.devices))
-    {
-        fprintf(stderr, "Could not open the sinks, exiting.\n");
-        return false;
-    }
-
-    size_t grabbed = 0;
-
-    for (size_t i = 0; i < forwarder.devices.count; i++)
-    {
-        if(forwarder.devices.items[i].grabbed)
-        {
-            grabbed++;
-        }
-    }
-
-    printf("\ngrabbed %zu device(s), the host no longer sees them. Ctrl-C to stop.\n\n", grabbed);
+    printf("\nready - Press Ctrl+Shift+space to toggle forwarding. Ctrl-C to quit.\n\n");
     return true;
 }
 
@@ -181,9 +189,16 @@ static void toggle_forwarding(Forwarder &forwarder)
 {
     if (g_active)
     {
+        for (size_t i = 0; i < forwarder.sinks.count; i++)
+        {
+            sink_release_held(forwarder.sinks.items[i], forwarder.devices.items[i].fd);
+        }
         set_grabbed(forwarder.devices, false);
         g_active = false;
         printf("Forwarding OFF.\n");
+    #ifdef HAVE_XTEST
+        xtest_release_all(forwarder.xtest);
+    #endif
     }
     else
     {
@@ -224,8 +239,6 @@ void forwarder_run(Forwarder &forwarder)
         {
             uint32_t index = ready[i].data.u32;
             Device &device = forwarder.devices.items[index];
-            Sink &sink = forwarder.sinks.items[index];
-
             input_event buffer[64];
 
             ssize_t r = read(device.fd, buffer, sizeof(buffer));
@@ -243,12 +256,15 @@ void forwarder_run(Forwarder &forwarder)
                     close(device.fd);
                     device.fd = -1;
 
-                    int &sink_fd = forwarder.sinks.items[index].fd;
-                    if (sink_fd >= 0)
+                    if (index < forwarder.sinks.count)
                     {
-                        ioctl(sink_fd, UI_DEV_DESTROY);
-                        close(sink_fd);
-                        sink_fd = -1;
+                        int &sink_fd = forwarder.sinks.items[index].fd;
+                        if (sink_fd >= 0)
+                        {
+                            ioctl(sink_fd, UI_DEV_DESTROY);
+                            close(sink_fd);
+                            sink_fd = -1;
+                        }
                     }
                     continue;
                 }
@@ -271,8 +287,10 @@ void forwarder_run(Forwarder &forwarder)
                     toggle_forwarding(forwarder);
                     continue;
                 }
+
+                if (g_active)
+                    forward_event(forwarder, index, event);
                 
-                handle_event(device, event, sink);
             }
         }
     }

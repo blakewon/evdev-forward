@@ -16,6 +16,10 @@ int main(int argc, char **argv)
         {
             forwarder_set_verbose(true);
         }
+        else if (strncmp(argv[i], "--display=", 10) == 0)
+        {
+            forwarder.display = argv[i] + 10;
+        }
     }
 
     if (forwarder.devices.count <= 0)

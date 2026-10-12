@@ -136,3 +136,35 @@ void sinks_close(Sinks &sinks)
         }
     }
 }
+
+void sink_release_held(Sink &sink, int source_fd)
+{
+    if (sink.fd < 0 || source_fd < 0)
+        return;
+
+    unsigned char keys[KEY_MAX / 8 + 1] = {};
+    if (ioctl(source_fd, EVIOCGKEY(sizeof(keys)), keys) < 0)
+        return;
+
+    bool any = false;
+
+    for (int code = 0; code <= KEY_MAX; code++)
+    {
+        if (!(keys[code >> 3] & (1u << (code & 7))))
+            continue;
+
+        input_event event{};
+        event.type = EV_KEY;
+        event.code = (unsigned short)code;
+        event.value = 0;
+        sink_write(sink, event);
+        any = true;
+    }
+    if (any)
+    {
+        input_event syn{};
+        syn.type = EV_SYN;
+        syn.code = SYN_REPORT;
+        sink_write(sink, syn);
+    }
+}

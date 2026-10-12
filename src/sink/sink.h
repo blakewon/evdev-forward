@@ -17,3 +17,4 @@ struct Sinks
 bool sinks_open(Sinks &sinks, const Devices &sources);
 void sink_write(Sink& sink, const input_event &event);
 void sinks_close(Sinks &sinks);
+void sink_release_held(Sink &sink, int source_fd);

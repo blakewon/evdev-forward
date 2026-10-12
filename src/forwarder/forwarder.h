@@ -2,6 +2,7 @@
 
 #include "devices/devices.h"
 #include "sink/sink.h"
+#include "sink/xtest.h"
 struct Hotkey
 {
     bool ctrl = false;
@@ -13,6 +14,8 @@ struct Forwarder
     Sinks sinks;
     int epoll_fd = -1;
     Hotkey hotkey;
+    const char *display = nullptr;  //non-null means XTest mode
+    XTestSink xtest;
 
     ~Forwarder();
 
