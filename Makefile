@@ -1,4 +1,4 @@
-ifeq($(wildcard config.mk),)
+ifeq ($(wildcard config.mk),)
 $(error No config.mk - run ./configure first)
 endif
 
