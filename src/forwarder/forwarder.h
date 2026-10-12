@@ -16,6 +16,7 @@ struct Forwarder
     Hotkey hotkey;
     const char *display = nullptr;  //non-null means XTest mode
     XTestSink xtest;
+    bool always_on = false;
 
     ~Forwarder();
 

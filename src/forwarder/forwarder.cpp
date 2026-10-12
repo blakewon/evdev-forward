@@ -156,7 +156,20 @@ bool forwarder_setup(Forwarder& forwarder)
         return false;
     }
 
-    printf("\nready - Press Ctrl+Shift+space to toggle forwarding. Ctrl-C to quit.\n\n");
+    if (forwarder.always_on)
+    {
+        if (!set_grabbed(forwarder.devices, true))
+        {
+            fprintf(stderr, "Could not grab devices, exiting...\n");
+            return false;
+        }
+        g_active = true;
+        printf("forwarding (no hotkey). stop with: kill %d\n\n", (int)getpid());
+    }
+    else
+    {
+        printf("ready - Ctrl+Shift+Space toggles forwarding. Ctrl-C to quit.\n\n");
+    }
     return true;
 }
 
@@ -282,7 +295,7 @@ void forwarder_run(Forwarder &forwarder)
             {
                 const input_event &event = buffer[k];
 
-                if (hotkey_feed(forwarder.hotkey, event))
+                if (!forwarder.always_on && hotkey_feed(forwarder.hotkey, event))
                 {
                     toggle_forwarding(forwarder);
                     continue;

@@ -69,7 +69,7 @@ bool sink_open_one(Sink& sink, const Device &source)
     uinput_setup setup{};
     ioctl(source.fd, EVIOCGID, &setup.id);
 
-    if (snprintf(setup.name, sizeof(setup.name), "%s" , source.name) < 0)
+    if (snprintf(setup.name, sizeof(setup.name), "evdev-forward %s" , source.name) < 0)
     {
         strcpy(setup.name, "evdev-forward");
     }
