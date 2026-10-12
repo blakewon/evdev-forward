@@ -5,3 +5,6 @@ build/
 evdev-forward
 compile_commands.json
 .cache/
+
+config.mk
+config.h

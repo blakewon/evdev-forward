@@ -1,12 +1,16 @@
 CXX			:= g++
-CXXFLAGS	:= -O2 -std=c++17 -Wall -Wextra -Isrc -MMD -MP -fno-exceptions -fno-rtti
-LDLIBS		:=
+CXXFLAGS	:= -O2 -std=c++17 -Wall -Wextra -Isrc -I -MMD -MP -fno-exceptions -fno-rtti
+LDLIBS		:= $(XTEST_LIBS)
 
 SRC_DIR		:= src
 BUILD_DIR	:= build
 BIN			:= evdev-forward
 
 SRCS		:= $(shell find $(SRC_DIR) -name '*.cpp')
+ifneq ($(HAVE_XTEST),1)
+SRCS		:=$(filter-out $(SRC_DIR)/sink/xtest.cpp,$(SRCS))
+endif
+
 OBJS		:= $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 DEPS		:= $(OBJS:.o=.d)
 
@@ -24,4 +28,4 @@ clean:
 
 -include $(DEPS)
 
-.PHONY: all clean
+.PHONY: all clean distclean
